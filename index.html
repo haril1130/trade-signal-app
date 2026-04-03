@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>Trade Signal One-File App</title>
+  <meta name="theme-color" content="#111827">
+  <style>
+    :root{
+      --bg:#0b1220; --card:#111827; --muted:#9ca3af; --text:#f3f4f6;
+      --green:#10b981; --red:#ef4444; --amber:#f59e0b; --line:#1f2937; --blue:#2563eb;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Arial,sans-serif}
+    .wrap{max-width:760px;margin:0 auto;padding:16px 16px 40px}
+    .title{font-size:28px;font-weight:800;margin:8px 0 4px}
+    .sub{color:var(--muted);margin-bottom:16px;line-height:1.4}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px;margin:12px 0}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .metric{background:#0f172a;border:1px solid var(--line);border-radius:14px;padding:12px}
+    .metric .k{font-size:12px;color:var(--muted);margin-bottom:6px}
+    .metric .v{font-size:20px;font-weight:700}
+    input,select,button{width:100%;padding:14px;border-radius:12px;border:1px solid var(--line);background:#0f172a;color:var(--text)}
+    button{background:var(--blue);border:none;font-weight:700}
+    button.secondary{background:#374151}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .signal-buy{color:var(--green)}
+    .signal-sell{color:var(--red)}
+    .signal-wait{color:var(--amber)}
+    .news-item{padding:12px 0;border-top:1px solid var(--line)}
+    .small{font-size:12px;color:var(--muted)}
+    .reason{line-height:1.45}
+    a{color:#93c5fd}
+    .pill{display:inline-block;padding:6px 10px;border-radius:999px;background:#0f172a;border:1px solid var(--line);font-size:12px;color:var(--muted)}
+    .steps{line-height:1.55}
+    @media (max-width: 640px){
+      .row,.grid{grid-template-columns:1fr}
+    }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <div class="title">Trade Signal One-File App</div>
+  <div class="sub">A single HTML file you can upload to GitHub and open on your iPhone. No Xcode needed.</div>
+
+  <div class="card">
+    <div class="row">
+      <div>
+        <label class="small">Finnhub API Key</label>
+        <input id="apiKey" placeholder="Paste your Finnhub API key" />
+      </div>
+      <div>
+        <label class="small">Symbol</label>
+        <input id="symbol" value="SPY" />
+      </div>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <div>
+        <label class="small">Timeframe</label>
+        <select id="resolution">
+          <option value="1">1 min</option>
+          <option value="5" selected>5 min</option>
+          <option value="15">15 min</option>
+        </select>
+      </div>
+      <div>
+        <label class="small">News Category</label>
+        <select id="newsCategory">
+          <option value="general" selected>General market</option>
+          <option value="forex">Forex</option>
+          <option value="crypto">Crypto</option>
+          <option value="merger">Merger</option>
+        </select>
+      </div>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <button id="runBtn">Refresh Signal</button>
+      <button id="saveBtn" class="secondary">Save Key on Device</button>
+    </div>
+    <div class="small" style="margin-top:10px">This is a decision-support tool. It does not place trades.</div>
+  </div>
+
+  <div class="card">
+    <div class="pill" id="marketState">Status: waiting</div>
+    <h2 id="signalText" class="signal-wait" style="margin:12px 0 4px">WAIT</h2>
+    <div id="confidence" class="small">Confidence: --</div>
+    <p id="reason" class="reason">Add your API key and tap Refresh Signal.</p>
+    <div class="grid" style="margin-top:12px">
+      <div class="metric"><div class="k">Last Price</div><div id="lastPrice" class="v">--</div></div>
+      <div class="metric"><div class="k">VWAP</div><div id="vwap" class="v">--</div></div>
+      <div class="metric"><div class="k">EMA 9</div><div id="ema9" class="v">--</div></div>
+      <div class="metric"><div class="k">EMA 21</div><div id="ema21" class="v">--</div></div>
+      <div class="metric"><div class="k">Stop Loss</div><div id="stopLoss" class="v">--</div></div>
+      <div class="metric"><div class="k">Take Profit</div><div id="takeProfit" class="v">--</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3 style="margin-top:0">Latest Market News</h3>
+    <div id="newsBias" class="small">News bias: --</div>
+    <div id="newsList"></div>
+  </div>
+
+  <div class="card">
+    <h3 style="margin-top:0">Upload steps</h3>
+    <div class="steps">
+      1. Create a public GitHub repo.<br>
+      2. Upload this single file and name it <b>index.html</b>.<br>
+      3. In GitHub: <b>Settings → Pages → Deploy from a branch → main / root</b>.<br>
+      4. Open your live URL in Safari on iPhone.<br>
+      5. Tap <b>Share → Add to Home Screen</b>.
+    </div>
+  </div>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+
+function saveKey() {
+  localStorage.setItem("finnhub_api_key", $("apiKey").value.trim());
+  alert("API key saved on this device.");
+}
+
+function loadKey() {
+  $("apiKey").value = localStorage.getItem("finnhub_api_key") || "";
+}
+
+function ema(period, values) {
+  if (!values.length) return 0;
+  const multiplier = 2 / (period + 1);
+  let current = values[0];
+  for (let i = 1; i < values.length; i++) {
+    current = (values[i] - current) * multiplier + current;
+  }
+  return current;
+}
+
+function calcVWAP(candles) {
+  let totalPV = 0, totalVol = 0;
+  for (const c of candles) {
+    const typical = (c.h + c.l + c.c) / 3;
+    totalPV += typical * c.v;
+    totalVol += c.v;
+  }
+  return totalVol ? totalPV / totalVol : 0;
+}
+
+function scoreNews(articles) {
+  const bullish = ["beat","growth","surge","rally","upgrade","strong","cooling inflation","record","soft landing"];
+  const bearish = ["miss","selloff","war","tariff","downgrade","hot inflation","crash","recession","geopolitical"];
+  let score = 0;
+  for (const a of articles) {
+    const t = ((a.headline || "") + " " + (a.summary || "")).toLowerCase();
+    bullish.forEach(w => { if (t.includes(w)) score += 3; });
+    bearish.forEach(w => { if (t.includes(w)) score -= 3; });
+  }
+  return score;
+}
+
+function setSignalUI(action, score, reason, last, vwapVal, ema9Val, ema21Val, stopLoss, takeProfit, newsBias) {
+  const el = $("signalText");
+  el.textContent = action;
+  el.className = action.includes("CALL") ? "signal-buy" : action.includes("PUT") ? "signal-sell" : "signal-wait";
+  $("confidence").textContent = "Confidence: " + score + "/100";
+  $("reason").textContent = reason || "No signal yet.";
+  $("lastPrice").textContent = last ? last.toFixed(2) : "--";
+  $("vwap").textContent = vwapVal ? vwapVal.toFixed(2) : "--";
+  $("ema9").textContent = ema9Val ? ema9Val.toFixed(2) : "--";
+  $("ema21").textContent = ema21Val ? ema21Val.toFixed(2) : "--";
+  $("stopLoss").textContent = stopLoss ? stopLoss.toFixed(2) : "--";
+  $("takeProfit").textContent = takeProfit ? takeProfit.toFixed(2) : "--";
+  $("newsBias").textContent = "News bias: " + newsBias;
+}
+
+async function fetchCandles(apiKey, symbol, resolution) {
+  const now = Math.floor(Date.now() / 1000);
+  const from = now - (60 * 60 * 8);
+  const url = `https://finnhub.io/api/v1/stock/candle?symbol=${encodeURIComponent(symbol)}&resolution=${resolution}&from=${from}&to=${now}&token=${encodeURIComponent(apiKey)}`;
+  const res = await fetch(url);
+  const data = await res.json();
+  if (!data || data.s !== "ok") throw new Error("Could not load candle data.");
+  return data.c.map((close, i) => ({
+    c: data.c[i], h: data.h[i], l: data.l[i], o: data.o[i], t: data.t[i], v: data.v[i]
+  }));
+}
+
+async function fetchNews(apiKey, category) {
+  const url = `https://finnhub.io/api/v1/news?category=${encodeURIComponent(category)}&token=${encodeURIComponent(apiKey)}`;
+  const res = await fetch(url);
+  const data = await res.json();
+  return Array.isArray(data) ? data.slice(0, 6) : [];
+}
+
+function evaluate(candles, newsScore) {
+  const closes = candles.map(x => x.c);
+  const last = closes[closes.length - 1];
+  const ema9Val = ema(9, closes);
+  const ema21Val = ema(21, closes);
+  const vwapVal = calcVWAP(candles);
+  const vols = candles.slice(-20).map(x => x.v);
+  const avgVol = vols.reduce((a,b)=>a+b,0) / Math.max(vols.length,1);
+  const currentVol = candles[candles.length - 1].v;
+  const recentHigh = Math.max(...candles.slice(-12).map(x => x.h));
+  const recentLow = Math.min(...candles.slice(-12).map(x => x.l));
+
+  let bull = 0, bear = 0, reasons = [];
+
+  if (ema9Val > ema21Val) { bull += 35; reasons.push("EMA 9 above EMA 21"); }
+  else { bear += 35; reasons.push("EMA 9 below EMA 21"); }
+
+  if (last > vwapVal) { bull += 25; reasons.push("Price above VWAP"); }
+  else { bear += 25; reasons.push("Price below VWAP"); }
+
+  if (currentVol > avgVol * 1.25) {
+    if (last > ema9Val) { bull += 20; reasons.push("Volume spike confirms upside"); }
+    else { bear += 20; reasons.push("Volume spike confirms downside"); }
+  }
+
+  if (last >= recentHigh * 0.997) { bull += 10; reasons.push("Near breakout"); }
+  if (last <= recentLow * 1.003) { bear += 10; reasons.push("Near breakdown"); }
+
+  if (newsScore > 0) { bull += Math.min(newsScore, 15); reasons.push("News tone mildly bullish"); }
+  if (newsScore < 0) { bear += Math.min(Math.abs(newsScore), 15); reasons.push("News tone mildly bearish"); }
+
+  const score = Math.max(bull, bear);
+  let action = "WAIT", stopLoss = null, takeProfit = null;
+
+  if (bull >= 65) {
+    action = "BUY CALLS";
+    stopLoss = last * 0.992;
+    takeProfit = last * 1.012;
+  } else if (bear >= 65) {
+    action = "BUY PUTS";
+    stopLoss = last * 1.008;
+    takeProfit = last * 0.988;
+  }
+
+  const newsBias = newsScore > 0 ? "Bullish" : newsScore < 0 ? "Bearish" : "Neutral";
+  return { action, score, reason: reasons.join(" • "), last, vwapVal, ema9Val, ema21Val, stopLoss, takeProfit, newsBias };
+}
+
+async function run() {
+  const apiKey = $("apiKey").value.trim();
+  const symbol = $("symbol").value.trim().toUpperCase() || "SPY";
+  const resolution = $("resolution").value;
+  const category = $("newsCategory").value;
+
+  if (!apiKey) {
+    alert("Please add your Finnhub API key.");
+    return;
+  }
+
+  $("marketState").textContent = "Status: loading...";
+  $("newsList").innerHTML = "";
+
+  try {
+    const [candles, news] = await Promise.all([
+      fetchCandles(apiKey, symbol, resolution),
+      fetchNews(apiKey, category)
+    ]);
+
+    const newsScore = scoreNews(news);
+    const out = evaluate(candles, newsScore);
+
+    setSignalUI(out.action, out.score, out.reason, out.last, out.vwapVal, out.ema9Val, out.ema21Val, out.stopLoss, out.takeProfit, out.newsBias);
+    $("marketState").textContent = `Status: ready for ${symbol}`;
+
+    $("newsList").innerHTML = news.map(n => `
+      <div class="news-item">
+        <div style="font-weight:700">${n.headline || "No headline"}</div>
+        <div class="small">${n.source || "Unknown source"}</div>
+        <div class="small">${n.summary || ""}</div>
+        ${n.url ? `<div class="small"><a href="${n.url}" target="_blank" rel="noopener">Open article</a></div>` : ""}
+      </div>
+    `).join("");
+
+  } catch (err) {
+    $("marketState").textContent = "Status: error";
+    $("reason").textContent = err.message || "Could not load data.";
+  }
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  loadKey();
+  $("runBtn").addEventListener("click", run);
+  $("saveBtn").addEventListener("click", saveKey);
+});
+</script>
+</body>
+</html>
