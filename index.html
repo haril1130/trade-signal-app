@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SPY Live</title>
+</head>
+<body style="background:#0b132b;color:white;font-family:sans-serif;text-align:center;padding:20px;">
+
+<h1>SPY Live Price</h1>
+<h2 id="price">Loading...</h2>
+<p id="status">Starting...</p>
+
+<button onclick="start()">Start</button>
+
+<script>
+let polling=false;
+
+async function fetchData(){
+  try{
+    // Using Yahoo via allorigins proxy (CORS safe)
+    const url="https://api.allorigins.win/raw?url=https://query1.finance.yahoo.com/v8/finance/chart/SPY";
+
+    const res=await fetch(url);
+    const data=await res.json();
+
+    const price=data.chart.result[0].meta.regularMarketPrice;
+
+    document.getElementById("price").innerText="$"+price.toFixed(2);
+    document.getElementById("status").innerText="Live ✅";
+
+  }catch(e){
+    document.getElementById("status").innerText="Error: "+e.message;
+  }
+}
+
+function start(){
+  if(polling) return;
+  polling=true;
+  fetchData();
+  setInterval(fetchData,10000);
+}
+</script>
+
+</body>
+</html>
