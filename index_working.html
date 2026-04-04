@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SPY Signal Monitor</title>
+</head>
+<body style="background:#0b132b;color:white;font-family:sans-serif;text-align:center;padding:20px;">
+
+<h1>SPY Signal Monitor</h1>
+<h2 id="price">Loading...</h2>
+<p id="status">Status: loading</p>
+
+<button onclick="start()">Start Polling</button>
+
+<script>
+let polling=false;
+
+async function fetchData(){
+  try{
+    const res=await fetch("https://financialmodelingprep.com/api/v3/quote/SPY?apikey=demo");
+    const data=await res.json();
+
+    const price=data[0].price;
+    const prev=data[0].previousClose;
+
+    document.getElementById("price").innerText="$"+price.toFixed(2);
+
+    const change=price-prev;
+    document.getElementById("status").innerText=
+      change>0 ? "Bullish 📈" : "Bearish 📉";
+
+  }catch(e){
+    document.getElementById("status").innerText="Error fetching data";
+  }
+}
+
+function start(){
+  if(polling) return;
+  polling=true;
+  fetchData();
+  setInterval(fetchData,10000);
+}
+</script>
+
+</body>
+</html>
