@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>SPY Signal Monitor</title>
+  <style>
+    :root{
+      --bg:#071224;
+      --card:#0d1b33;
+      --card2:#10203d;
+      --text:#e9eefb;
+      --muted:#a9b6d3;
+      --accent:#f5a524;
+      --good:#22c55e;
+      --bad:#ef4444;
+      --line:#223458;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+      background:linear-gradient(180deg,#06101f,#0b1730 40%,#081325);
+      color:var(--text);
+      min-height:100vh;
+    }
+    .wrap{
+      max-width:860px;
+      margin:0 auto;
+      padding:18px 14px 42px;
+    }
+    .title{
+      font-size:28px;
+      font-weight:800;
+      margin:6px 0 6px;
+      letter-spacing:.2px;
+    }
+    .sub{
+      color:var(--muted);
+      font-size:14px;
+      margin-bottom:16px;
+    }
+    .grid{
+      display:grid;
+      grid-template-columns:1fr;
+      gap:14px;
+    }
+    .card{
+      background:linear-gradient(180deg,var(--card),var(--card2));
+      border:1px solid var(--line);
+      border-radius:22px;
+      padding:16px;
+      box-shadow:0 6px 20px rgba(0,0,0,.18);
+    }
+    .row{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      align-items:center;
+    }
+    .pill{
+      border:1px solid var(--line);
+      border-radius:999px;
+      padding:8px 12px;
+      color:var(--muted);
+      background:rgba(255,255,255,.02);
+      font-size:14px;
+    }
+    .pill strong{color:var(--text)}
+    .headline{
+      display:flex;
+      justify-content:space-between;
+      align-items:flex-start;
+      gap:12px;
+      flex-wrap:wrap;
+    }
+    .price{
+      font-size:38px;
+      font-weight:800;
+      line-height:1;
+      margin-top:6px;
+    }
+    .delta{
+      margin-top:8px;
+      font-weight:700;
+    }
+    .good{color:var(--good)}
+    .bad{color:var(--bad)}
+    .wait{color:var(--accent)}
+    .label{
+      color:var(--muted);
+      font-size:13px;
+      margin-bottom:6px;
+    }
+    .metric{
+      background:rgba(255,255,255,.02);
+      border:1px solid var(--line);
+      border-radius:18px;
+      padding:14px;
+      min-height:94px;
+    }
+    .metric .big{
+      font-size:24px;
+      font-weight:800;
+      margin-top:8px;
+    }
+    .metrics{
+      display:grid;
+      grid-template-columns:repeat(2,minmax(0,1fr));
+      gap:12px;
+    }
+    .controls{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:12px;
+    }
+    .field{
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+    }
+    select, button, input[type="checkbox"]{
+      appearance:none;
+      -webkit-appearance:none;
+    }
+    select, button{
+      width:100%;
+      background:#0b1a33;
+      border:1px solid var(--line);
+      color:var(--text);
+      border-radius:16px;
+      padding:14px 14px;
+      font-size:16px;
+    }
+    button{
+      background:linear-gradient(180deg,#30415f,#223455);
+      font-weight:700;
+    }
+    button.primary{
+      background:linear-gradient(180deg,#445a84,#31466c);
+    }
+    .toggle{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      padding:14px;
+      border:1px solid var(--line);
+      border-radius:16px;
+      background:#0b1a33;
+    }
+    .switch{
+      position:relative;
+      width:54px;
+      height:30px;
+      border-radius:999px;
+      background:#20314d;
+      border:1px solid var(--line);
+      cursor:pointer;
+      flex:0 0 auto;
+    }
+    .switch::after{
+      content:"";
+      position:absolute;
+      top:3px;
+      left:3px;
+      width:22px;
+      height:22px;
+      border-radius:50%;
+      background:#c7d2ea;
+      transition:.2s;
+    }
+    .switch.active{
+      background:#1f5f3a;
+    }
+    .switch.active::after{
+      transform:translateX(24px);
+      background:white;
+    }
+    .small{
+      font-size:12px;
+      color:var(--muted);
+      line-height:1.45;
+    }
+    .footer{
+      margin-top:10px;
+      color:var(--muted);
+      font-size:12px;
+      text-align:center;
+    }
+    a{color:#9ec5ff}
+    @media (max-width:640px){
+      .metrics,.controls{grid-template-columns:1fr}
+      .price{font-size:34px}
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="title">SPY Signal Monitor</div>
+    <div class="sub">Yahoo-based polling version for iPhone Safari. Keep this page open while alerts run.</div>
+
+    <div class="grid">
+      <div class="card">
+        <div class="headline">
+          <div>
+            <div class="label">Symbol</div>
+            <div style="font-size:22px;font-weight:800;">SPY</div>
+            <div class="price" id="price">--</div>
+            <div class="delta" id="delta">Waiting for data...</div>
+          </div>
+          <div class="row">
+            <div class="pill"><strong>Status:</strong> <span id="statusText">idle</span></div>
+            <div class="pill"><strong>Polling:</strong> <span id="pollingText">off</span></div>
+            <div class="pill"><strong>Last update:</strong> <span id="lastUpdate">--</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="controls">
+          <div class="field">
+            <div class="label">Polling interval</div>
+            <select id="pollInterval">
+              <option value="10000">10 sec</option>
+              <option value="15000" selected>15 sec</option>
+              <option value="30000">30 sec</option>
+              <option value="60000">60 sec</option>
+            </select>
+          </div>
+          <div class="field">
+            <div class="label">Minimum confidence to alert</div>
+            <select id="minConfidence">
+              <option value="55">55%</option>
+              <option value="60" selected>60%</option>
+              <option value="65">65%</option>
+              <option value="70">70%</option>
+              <option value="75">75%</option>
+            </select>
+          </div>
+          <div class="field">
+            <div class="label">Cooldown between same alerts</div>
+            <select id="cooldown">
+              <option value="60000">1 min</option>
+              <option value="180000">3 min</option>
+              <option value="300000" selected>5 min</option>
+              <option value="600000">10 min</option>
+            </select>
+          </div>
+          <div class="field">
+            <div class="label">Actions</div>
+            <div class="row">
+              <button class="primary" id="refreshBtn">Refresh now</button>
+              <button id="togglePollingBtn">Start polling</button>
+            </div>
+          </div>
+        </div>
+
+        <div style="height:12px"></div>
+
+        <div class="controls">
+          <div class="toggle">
+            <div>
+              <div style="font-weight:700;">Call alerts</div>
+              <div class="small">Notify when bullish confidence crosses your threshold.</div>
+            </div>
+            <div class="switch" id="callSwitch"></div>
+          </div>
+          <div class="toggle">
+            <div>
+              <div style="font-weight:700;">Put alerts</div>
+              <div class="small">Notify when bearish confidence crosses your threshold.</div>
+            </div>
+            <div class="switch" id="putSwitch"></div>
+          </div>
+          <div class="toggle" style="grid-column:1/-1;">
+            <div>
+              <div style="font-weight:700;">Browser notifications</div>
+              <div class="small">Safari may require this page to stay open. Add to Home Screen for better behavior.</div>
+            </div>
+            <button id="notifyBtn" style="width:auto;min-width:220px;">Allow Notifications</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="row" style="margin-bottom:12px;">
+          <div class="pill"><strong>Source:</strong> Yahoo Finance chart</div>
+          <div class="pill"><strong>Alert:</strong> <span id="alertState">none</span></div>
+        </div>
+        <div id="signalText" class="wait" style="font-size:42px;font-weight:900;line-height:1;">WAIT</div>
+        <div style="margin-top:8px;color:var(--muted);" id="signalReason">No setup yet.</div>
+
+        <div style="height:14px"></div>
+
+        <div class="metrics">
+          <div class="metric">
+            <div class="label">Bull Probability</div>
+            <div class="big" id="bullProb">--</div>
+          </div>
+          <div class="metric">
+            <div class="label">Bear Probability</div>
+            <div class="big" id="bearProb">--</div>
+          </div>
+          <div class="metric">
+            <div class="label">Entry Timing</div>
+            <div class="big" id="entryTiming">--</div>
+          </div>
+          <div class="metric">
+            <div class="label">Option Idea</div>
+            <div class="big" id="optionIdea">--</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div style="font-weight:800;margin-bottom:8px;">How the signal works</div>
+        <div class="small">
+          This page pulls recent SPY candles from Yahoo and scores momentum using short-term direction, last-price vs VWAP approximation,
+          and acceleration. It is a simple personal-use signal tool, not financial advice. Yahoo endpoints can occasionally change or be unavailable.
+        </div>
+      </div>
+
+      <div class="footer">Built for simple GitHub Pages / iPhone Safari use.</div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  const state = {
+    polling: false,
+    timer: null,
+    callAlerts: false,
+    putAlerts: false,
+    lastCallAlertAt: 0,
+    lastPutAlertAt: 0,
+    lastSignal: 'WAIT'
+  };
+
+  const els = {
+    price: document.getElementById('price'),
+    delta: document.getElementById('delta'),
+    statusText: document.getElementById('statusText'),
+    pollingText: document.getElementById('pollingText'),
+    lastUpdate: document.getElementById('lastUpdate'),
+    bullProb: document.getElementById('bullProb'),
+    bearProb: document.getElementById('bearProb'),
+    entryTiming: document.getElementById('entryTiming'),
+    optionIdea: document.getElementById('optionIdea'),
+    signalText: document.getElementById('signalText'),
+    signalReason: document.getElementById('signalReason'),
+    alertState: document.getElementById('alertState'),
+    pollInterval: document.getElementById('pollInterval'),
+    minConfidence: document.getElementById('minConfidence'),
+    cooldown: document.getElementById('cooldown'),
+    refreshBtn: document.getElementById('refreshBtn'),
+    togglePollingBtn: document.getElementById('togglePollingBtn'),
+    notifyBtn: document.getElementById('notifyBtn'),
+    callSwitch: document.getElementById('callSwitch'),
+    putSwitch: document.getElementById('putSwitch')
+  };
+
+  function setStatus(text) {
+    els.statusText.textContent = text;
+  }
+
+  function fmtTime(date = new Date()) {
+    return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' });
+  }
+
+  function notify(title, body) {
+    if (!("Notification" in window)) return;
+    if (Notification.permission === "granted") {
+      new Notification(title, { body });
+    }
+  }
+
+  function setSwitch(el, active) {
+    el.classList.toggle('active', active);
+  }
+
+  function updateAlertStateText() {
+    const enabled = [];
+    if (state.callAlerts) enabled.push('call');
+    if (state.putAlerts) enabled.push('put');
+    els.alertState.textContent = enabled.length ? enabled.join(' + ') : 'none';
+  }
+
+  function round2(v) {
+    return Number(v).toFixed(2);
+  }
+
+  function clamp(v, min, max) {
+    return Math.max(min, Math.min(max, v));
+  }
+
+  function pickOptionIdea(signal, price) {
+    const rounded = Math.round(price);
+    if (signal === 'CALL') return `ATM/OTM call ${rounded}/${rounded + 1}`;
+    if (signal === 'PUT') return `ATM/OTM put ${rounded}/${rounded - 1}`;
+    return 'Wait for setup';
+  }
+
+  function computeSignal(prices, volumes) {
+    if (!prices || prices.length < 8) {
+      return {
+        signal: 'WAIT',
+        bull: null,
+        bear: null,
+        reason: 'Not enough candle data.',
+        entry: '--',
+        optionIdea: '--'
+      };
+    }
+
+    const cleanPrices = prices.filter(v => Number.isFinite(v));
+    const cleanVolumes = volumes.map(v => Number.isFinite(v) ? v : 0);
+
+    const last = cleanPrices[cleanPrices.length - 1];
+    const prev = cleanPrices[cleanPrices.length - 2];
+    const sma3 = cleanPrices.slice(-3).reduce((a,b)=>a+b,0) / 3;
+    const sma8 = cleanPrices.slice(-8).reduce((a,b)=>a+b,0) / 8;
+
+    let pv = 0, vv = 0;
+    for (let i = Math.max(0, cleanPrices.length - 20); i < cleanPrices.length; i++) {
+      pv += cleanPrices[i] * (cleanVolumes[i] || 1);
+      vv += (cleanVolumes[i] || 1);
+    }
+    const vwapApprox = vv ? (pv / vv) : sma8;
+
+    const ret1 = ((last - prev) / prev) * 100;
+    const ret3 = ((last - cleanPrices[Math.max(0, cleanPrices.length - 4)]) / cleanPrices[Math.max(0, cleanPrices.length - 4)]) * 100;
+    const trend = ((sma3 - sma8) / sma8) * 100;
+    const vwapEdge = ((last - vwapApprox) / vwapApprox) * 100;
+
+    let bull = 50;
+    bull += clamp(ret1 * 70, -18, 18);
+    bull += clamp(ret3 * 45, -16, 16);
+    bull += clamp(trend * 180, -14, 14);
+    bull += clamp(vwapEdge * 140, -12, 12);
+
+    bull = Math.round(clamp(bull, 1, 99));
+    const bear = 100 - bull;
+
+    let signal = 'WAIT';
+    let reason = 'Mixed momentum.';
+    let entry = 'No clear edge';
+
+    if (bull >= 60 && last > sma3 && sma3 > sma8) {
+      signal = 'CALL';
+      reason = 'Short-term momentum is bullish and price is holding above recent average.';
+      entry = bull >= 70 ? 'ENTER NOW' : 'Watch next push';
+    } else if (bear >= 60 && last < sma3 && sma3 < sma8) {
+      signal = 'PUT';
+      reason = 'Short-term momentum is bearish and price is staying below recent average.';
+      entry = bear >= 70 ? 'ENTER NOW' : 'Watch next drop';
+    }
+
+    return {
+      signal,
+      bull,
+      bear,
+      reason,
+      entry,
+      optionIdea: pickOptionIdea(signal, last)
+    };
+  }
+
+  async function fetchYahooData() {
+    setStatus('loading');
+    const url = 'https://query1.finance.yahoo.com/v8/finance/chart/SPY?interval=1m&range=1d&includePrePost=true';
+    const res = await fetch(url, { method: 'GET', mode: 'cors', cache: 'no-store' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+
+    const result = data?.chart?.result?.[0];
+    const quote = result?.indicators?.quote?.[0];
+    const meta = result?.meta;
+
+    if (!result || !quote?.close?.length) {
+      throw new Error('Yahoo returned no quote data.');
+    }
+
+    const closes = quote.close.filter(v => Number.isFinite(v));
+    const volumes = (quote.volume || []).slice(-closes.length);
+    const currentPrice = meta?.regularMarketPrice ?? closes[closes.length - 1];
+    const prevClose = meta?.chartPreviousClose ?? meta?.previousClose ?? closes[0];
+
+    return { currentPrice, prevClose, closes, volumes };
+  }
+
+  function renderQuote(currentPrice, prevClose) {
+    const change = currentPrice - prevClose;
+    const pct = prevClose ? (change / prevClose) * 100 : 0;
+    els.price.textContent = `$${round2(currentPrice)}`;
+    els.delta.textContent = `${change >= 0 ? '+' : ''}${round2(change)} (${change >= 0 ? '+' : ''}${pct.toFixed(2)}%) vs prev close`;
+    els.delta.className = `delta ${change > 0 ? 'good' : change < 0 ? 'bad' : 'wait'}`;
+    els.lastUpdate.textContent = fmtTime();
+  }
+
+  function renderSignal(signal) {
+    els.bullProb.textContent = signal.bull == null ? '--' : `${signal.bull}%`;
+    els.bearProb.textContent = signal.bear == null ? '--' : `${signal.bear}%`;
+    els.entryTiming.textContent = signal.entry;
+    els.optionIdea.textContent = signal.optionIdea;
+    els.signalText.textContent = signal.signal;
+    els.signalReason.textContent = signal.reason;
+    els.signalText.className = signal.signal === 'CALL' ? 'good' : signal.signal === 'PUT' ? 'bad' : 'wait';
+  }
+
+  function maybeAlert(signal, currentPrice) {
+    const minConf = Number(els.minConfidence.value);
+    const cooldown = Number(els.cooldown.value);
+    const now = Date.now();
+
+    if (signal.signal === 'CALL' && state.callAlerts && signal.bull >= minConf) {
+      if (now - state.lastCallAlertAt >= cooldown) {
+        state.lastCallAlertAt = now;
+        notify('SPY CALL alert', `Bullish confidence ${signal.bull}% at $${round2(currentPrice)}. ${signal.entry}. ${signal.optionIdea}`);
+      }
+    }
+
+    if (signal.signal === 'PUT' && state.putAlerts && signal.bear >= minConf) {
+      if (now - state.lastPutAlertAt >= cooldown) {
+        state.lastPutAlertAt = now;
+        notify('SPY PUT alert', `Bearish confidence ${signal.bear}% at $${round2(currentPrice)}. ${signal.entry}. ${signal.optionIdea}`);
+      }
+    }
+  }
+
+  async function refresh() {
+    try {
+      const { currentPrice, prevClose, closes, volumes } = await fetchYahooData();
+      renderQuote(currentPrice, prevClose);
+      const signal = computeSignal(closes, volumes);
+      renderSignal(signal);
+      maybeAlert(signal, currentPrice);
+      setStatus('ready');
+      state.lastSignal = signal.signal;
+    } catch (err) {
+      setStatus('error');
+      els.signalText.textContent = 'WAIT';
+      els.signalText.className = 'wait';
+      els.signalReason.textContent = `Yahoo error: ${err.message}`;
+      console.error(err);
+    }
+  }
+
+  function stopPolling() {
+    state.polling = false;
+    clearInterval(state.timer);
+    state.timer = null;
+    els.pollingText.textContent = 'off';
+    els.togglePollingBtn.textContent = 'Start polling';
+  }
+
+  function startPolling() {
+    stopPolling();
+    state.polling = true;
+    els.pollingText.textContent = 'on';
+    els.togglePollingBtn.textContent = 'Stop polling';
+    refresh();
+    state.timer = setInterval(refresh, Number(els.pollInterval.value));
+  }
+
+  els.refreshBtn.addEventListener('click', refresh);
+  els.togglePollingBtn.addEventListener('click', () => state.polling ? stopPolling() : startPolling());
+  els.pollInterval.addEventListener('change', () => { if (state.polling) startPolling(); });
+
+  els.notifyBtn.addEventListener('click', async () => {
+    if (!('Notification' in window)) {
+      alert('This browser does not support notifications.');
+      return;
+    }
+    const result = await Notification.requestPermission();
+    els.notifyBtn.textContent = result === 'granted' ? 'Notifications enabled' : 'Notifications blocked';
+  });
+
+  els.callSwitch.addEventListener('click', () => {
+    state.callAlerts = !state.callAlerts;
+    setSwitch(els.callSwitch, state.callAlerts);
+    updateAlertStateText();
+  });
+
+  els.putSwitch.addEventListener('click', () => {
+    state.putAlerts = !state.putAlerts;
+    setSwitch(els.putSwitch, state.putAlerts);
+    updateAlertStateText();
+  });
+
+  refresh();
+})();
+</script>
+</body>
+</html>
